@@ -13,6 +13,10 @@
     %global enable_server_option --enable-server
 %endif
 
+%global with_chrony 1
+%global with_ntpd 0
+%global with_openntpd 0
+
 # Build ipatests
 %if 0%{?rhel}
     %global with_ipatests 0
@@ -336,7 +340,6 @@ Requires(post): krb5-server >= %{krb5_version}
 Requires(post): krb5-server >= %{krb5_base_version}, krb5-server < %{krb5_base_version}.100
 Requires: krb5-pkinit-openssl >= %{krb5_version}
 Requires: cyrus-sasl-gssapi%{?_isa}
-Requires: chrony
 Requires: httpd >= 2.4.6-31
 %if %{with_default_python} == 3
 Requires(preun): python3
@@ -423,6 +426,7 @@ BuildArch: noarch
 %{!?python_provide:Provides: python-ipaserver = %{version}-%{release}}
 Requires: %{name}-server-common = %{version}-%{release}
 Requires: %{name}-common = %{version}-%{release}
+Requires: python2-ipalib = %{version}-%{release}
 Requires: python2-augeas
 Requires: python2-custodia >= 0.3.1
 Requires: python2-dbus
@@ -454,6 +458,7 @@ BuildArch: noarch
 %{?python_provide:%python_provide python3-ipaserver}
 Requires: %{name}-server-common = %{version}-%{release}
 Requires: %{name}-common = %{version}-%{release}
+Requires: python3-ipalib = %{version}-%{release}
 %if 0%{?fedora} >= 29
 Conflicts: python2-ipaserver
 Obsoletes: python2-ipaserver < %{version}
@@ -588,7 +593,6 @@ Requires: python2-ldap >= %{python_ldap_version}
 Requires: python2-sssdconfig
 %endif
 Requires: cyrus-sasl-gssapi%{?_isa}
-Requires: chrony
 Requires: krb5-workstation >= %{krb5_version}
 Requires: authselect >= 0.4-2
 Requires: curl
@@ -826,6 +830,80 @@ features for further integration with Linux based clients (SUDO, automount)
 and integration with Active Directory based infrastructures (Trusts).
 If you are using IPA with Python 3, you need to install this package.
 
+%if 0%{?with_chrony}
+%if 0%{?with_python2}
+
+%package -n python2-freeipa-chrony
+Summary: Python2 libraries for chrony config used by IPA
+Group: System Environment/Libraries
+BuildArch: noarch
+Requires: chrony
+
+%description -n python2-freeipa-chrony
+Chrony time&data service for configuring IPA and sync time
+
+%endif  # with_python2
+
+%package -n python3-freeipa-chrony
+Summary: Python3 libraries for chrony config used by IPA
+Group: System Environment/Libraries
+BuildArch: noarch
+Requires: chrony
+
+%description -n python3-freeipa-chrony
+Chrony time&data service for configuring IPA and sync time
+
+%endif # with_chrony
+
+%if 0%{?with_openntpd}
+%if 0%{?with_python2}
+
+%package -n python2-freeipa-openntpd
+Summary: Python2 libraries for chrony config used by IPA
+Group: System Environment/Libraries
+BuildArch: noarch
+Requires: openntpd
+
+%description -n python2-freeipa-openntpd
+OpenNTPD time&data service for configuring IPA and sync time
+
+%endif  # with_python2
+
+%package -n python3-freeipa-openntpd
+Summary: Python3 libraries for chrony config used by IPA
+Group: System Environment/Libraries
+BuildArch: noarch
+Requires: openntpd
+
+%description -n python3-freeipa-openntpd
+OpenNTPD time&data service for configuring IPA and sync time
+
+%endif # with_openntpd
+
+%if 0%{?with_ntpd}
+%if 0%{?with_python2}
+
+%package -n python2-freeipa-ntpd
+Summary: Python2 libraries for chrony config used by IPA
+Group: System Environment/Libraries
+BuildArch: noarch
+Requires: ntpd
+
+%description -n python2-freeipa-ntpd
+NTPD time&data service for configuring IPA and sync time
+
+%endif  # with_python2
+
+%package -n python3-freeipa-ntpd
+Summary: Python3 libraries for chrony config used by IPA
+Group: System Environment/Libraries
+BuildArch: noarch
+Requires: ntpd
+
+%description -n python3-freeipa-ntpd
+NTPD time&data service for configuring IPA and sync time
+
+%endif # with_ntpd
 
 %package common
 Summary: Common files used by IPA
@@ -1626,6 +1704,10 @@ fi
 %{python2_sitelib}/ipaplatform-*.egg-info
 %{python2_sitelib}/ipaplatform-*-nspkg.pth
 
+%exclude %{python2_sitelib}/ipalib/chrony*
+%exclude %{python2_sitelib}/ipalib/ntpd*
+%exclude %{python2_sitelib}/ipalib/ontpd*
+
 %endif # with_python2
 
 %files common -f %{gettext_domain}.lang
@@ -1645,6 +1727,49 @@ fi
 %{python3_sitelib}/ipalib-*.egg-info
 %{python3_sitelib}/ipaplatform-*.egg-info
 %{python3_sitelib}/ipaplatform-*-nspkg.pth
+
+%exclude %{python3_sitelib}/ipalib/chrony*
+%exclude %{python3_sitelib}/ipalib/ntpd*
+%exclude %{python3_sitelib}/ipalib/ontpd*
+
+%if 0%{?with_chrony}
+%if 0%{?with_python2}
+
+%files -n python2-freeipa-chrony
+%{python2_sitelib}/ipalib/chrony*
+
+%endif # with_python2
+
+%files -n python3-freeipa-chrony
+%{python3_sitelib}/ipalib/chrony*
+
+%endif # with_chrony
+
+%if 0%{?with_openntpd}
+%if 0%{?with_python2}
+
+%files -n python2-freeipa-openntpd
+%{python2_sitelib}/ipalib/ontpd*
+
+%endif # with_python2
+
+%files -n python3-freeipa-openntpd
+%{python3_sitelib}/ipalib/ontpd*
+
+%endif # with_openntpd
+
+%if 0%{?with_ntpd}
+%if 0%{?with_python2}
+
+%files -n python2-freeipa-ntpd
+%{python2_sitelib}/ipalib/ntpd*
+
+%endif # with_python2
+
+%files -n python3-freeipa-ntpd
+%{python3_sitelib}/ipalib/ntpd*
+
+%endif # with_ntpd
 
 
 %if 0%{?with_ipatests}
