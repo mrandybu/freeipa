@@ -44,7 +44,12 @@ class OpenNTPDConfig(BaseClientConfig):
     def sync_time(self):
         timeout = 15
         ntp_servers = self._search_ntp_servers()
-        args = [paths.BIN_TIMEOUT, str(timeout), self.ntp_bin, '-f', self.path_conf]
+        args = [
+            paths.BIN_TIMEOUT,
+            str(timeout),
+            self.ntp_bin,
+            '-f', self.path_conf
+        ]
 
         return self._run_sync(args, timeout, ntp_servers)
 
@@ -68,11 +73,13 @@ class OpenNTPDInstance(BaseServerConfig):
     def create_instance(self):
         self._make_instance()
         try:
-            self.step("set %s server mode" % self.service_name, self.__server_mode)
-        except:
+            self.step("set %s server mode"
+                      % self.service_name,
+                      self.__server_mode)
+        except Exception:
             pass
         try:
             self.start_creation()
             return True
-        except:
+        except Exception:
             return False

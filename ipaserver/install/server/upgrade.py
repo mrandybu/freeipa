@@ -17,12 +17,11 @@ import tempfile
 from contextlib import contextmanager
 from augeas import Augeas
 import dns.exception
-from ipalib import api, x509
+from ipalib import api, x509, ntpmethods
 from ipalib.install import certmonger, sysrestore
 import SSSDConfig
 import ipalib.util
 import ipalib.errors
-from ipaclient.install import timeconf
 from ipaclient.install.client import sssd_enable_service
 from ipaplatform import services
 from ipaplatform.tasks import tasks
@@ -1632,7 +1631,7 @@ def enable_certauth(krb):
 
 def ntpd_cleanup(fqdn, fstore):
     sstore = sysrestore.StateFile(paths.SYSRESTORE)
-    timeconf.restore_forced_timeservices(sstore, 'ntpd')
+    ntpmethods.restore_forced_service(sstore)
     if sstore.has_state('ntp'):
         instance = services.service('ntpd', api)
         sstore.restore_state(instance.service_name, 'enabled')

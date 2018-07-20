@@ -24,7 +24,6 @@ import six
 
 from ipaclient.install.client import check_ldap_conf
 from ipaclient.install.ipachangeconf import IPAChangeConf
-import ipaclient.install.timeconf
 from ipalib.install import certstore, sysrestore
 from ipalib.install.kinit import kinit_keytab
 from ipapython import ipaldap, ipautil, version
@@ -34,7 +33,8 @@ from ipapython.admintool import ScriptError
 from ipaplatform import services
 from ipaplatform.tasks import tasks
 from ipaplatform.paths import paths
-from ipalib import api, constants, create_api, errors, rpc, x509
+from ipalib import api, constants, create_api, errors, rpc, x509, ntpmethods
+from ipalib.ntpmethods import TIME_SERVICE
 from ipalib.config import Env
 from ipalib.util import no_matching_interface_for_ip_address_warning
 from ipaclient.install.client import configure_krb5_conf, purge_host_keytab
@@ -160,7 +160,6 @@ def install_http(config, auto_redirect, ca_is_configured, ca_file,
     if pkcs12_info is None:
         pkcs12_info = make_pkcs12_info(config.dir, "httpcert.p12",
                                        "http_pin.txt")
-
 
     http = httpinstance.HTTPInstance()
     http.create_instance(
@@ -581,12 +580,12 @@ def common_check(no_ntp):
 
     if not no_ntp:
         try:
-            ipaclient.install.timeconf.check_timedate_services()
-        except ipaclient.install.timeconf.NTPConflictingService as e:
+            ntpmethods.check_timedate_services()
+        except ntpmethods.NTPConflictingService as e:
             print("WARNING: conflicting time&date synchronization service "
-                  "'{svc}' will\nbe disabled in favor of chronyd\n"
-                  .format(svc=e.conflicting_service))
-        except ipaclient.install.timeconf.NTPConfigurationError:
+                  "'{svc}' will\nbe disabled in favor of {srv}\n"
+                  .format(svc=e.conflicting_service, srv=TIME_SERVICE))
+        except ntpmethods.NTPConfigurationError:
             pass
 
 
@@ -877,8 +876,8 @@ def install_check(installer):
                      ccache)
 
     except errors.ACIError:
-        raise ScriptError("\nThe password provided is incorrect for LDAP server "
-                          "%s" % config.master_host_name)
+        raise ScriptError("\nThe password provided is incorrect "
+                          "for LDAP server %s" % config.master_host_name)
     except errors.LDAPError:
         raise ScriptError("\nUnable to connect to LDAP server %s" %
                           config.master_host_name)
@@ -1199,7 +1198,6 @@ def promote_check(installer):
                 conn.disconnect()
                 conn.connect(ccache=ccache)
 
-
         # Check that we don't already have a replication agreement
         if replman.get_replication_agreement(config.host_name):
             msg = ("A replication agreement for this host already exists. "
@@ -1397,8 +1395,8 @@ def install(installer):
         installutils.update_hosts_file(config.ips, config.host_name, fstore)
 
     if not promote and not options.no_ntp:
-        # in DL1, chrony is already installed
-        ipaclient.install.timeconf.force_chrony(sstore)
+        # in DL1, ntp is already installed
+        ntpmethods.force_service(sstore)
 
     try:
         if promote:

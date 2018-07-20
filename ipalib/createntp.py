@@ -9,10 +9,14 @@ def check_import():
     impls = [['ntpd', 'NTPD'], ['ontpd', 'OpenNTPD'], ['chrony', 'Chrony']]
     for imp in impls:
         try:
-            tsinst = getattr(import_module('ipalib.{srv}lib'.format(srv=imp[0])), imp[1] + 'Instance')
-            tsconf = getattr(import_module('ipalib.{srv}lib'.format(srv=imp[0])), imp[1] + 'Config')
+            tsinst = getattr(import_module(
+                'ipalib.{srv}lib'.format(srv=imp[0])),
+                imp[1] + 'Instance')
+            tsconf = getattr(import_module(
+                'ipalib.{srv}lib'.format(srv=imp[0])),
+                imp[1] + 'Config')
             return tsinst, tsconf, imp
-        except:
+        except Exception:
             pass
     print("Package with ipa library for ntp service not found in system. "
           "Please, install library package and try again.")
@@ -29,7 +33,7 @@ def make_instance(sstore, fstore):
     try:
         cl.create_instance()
         return True
-    except:
+    except Exception:
         return False
 
 

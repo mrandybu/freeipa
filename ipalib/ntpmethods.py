@@ -59,7 +59,9 @@ def check_timedate_services():
             continue
         instance = services.service(service)
         if instance.is_enabled() or instance.is_running():
-            raise NTPConflictingService(conflicting_service=instance.service_name)
+            raise NTPConflictingService(
+                conflicting_service=instance.service_name
+            )
 
 
 def is_run():
@@ -88,8 +90,10 @@ def restore_forced_service(statestore):
             continue
         if statestore.has_state(service):
             instance = services.service(service)
-            enabled = statestore.restore_state(instance.service_name, 'enabled')
-            running = statestore.restore_state(instance.service_name, 'running')
+            enabled = statestore.restore_state(instance.service_name,
+                                               'enabled')
+            running = statestore.restore_state(instance.service_name,
+                                               'running')
             if enabled:
                 instance.enable()
             if running:

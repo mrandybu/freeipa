@@ -42,7 +42,9 @@ class BaseClientConfig(object):
         path_step_tickers = paths.NTP_STEP_TICKERS
         path_ntp_sysconfig = paths.SYSCONFIG_NTPD
         sub_dict = {}
-        sub_dict["SERVERS_BLOCK"] = "\n".join("server %s" % s for s in ntp_servers)
+        sub_dict["SERVERS_BLOCK"] = "\n".join(
+            "server %s" % s for s in ntp_servers
+        )
         sub_dict["TICKER_SERVERS_BLOCK"] = "\n".join(ntp_servers)
 
         nc = ipautil.template_str(self.ntp_conf, sub_dict)
@@ -57,7 +59,11 @@ class BaseClientConfig(object):
 
         if self.sysstore:
             module = 'ntp'
-            self.sysstore.backup_state(module, "enabled", ntpmethods.service_command().is_enabled())
+            self.sysstore.backup_state(
+                module,
+                "enabled",
+                ntpmethods.service_command().is_enabled()
+            )
             if config_step_tickers:
                 self.sysstore.backup_state(module, "step-tickers", True)
 
@@ -79,11 +85,11 @@ class BaseClientConfig(object):
             try:
                 self.__config_ntp(ntp_servers)
                 configured = True
-            except:
+            except Exception:
                 pass
         else:
-            root_logger.warning("No SRV records of NTP servers found and no NTP server "
-                                "or pool address was provided.")
+            root_logger.warning("No SRV records of NTP servers found and "
+                                "no NTP server or pool address was provided.")
 
         if not configured:
             print("Using default %s configuration." % TIME_SERVICE)
@@ -93,7 +99,8 @@ class BaseClientConfig(object):
 
         try:
             root_logger.info('Attempting to sync time using {srv}. '
-                             'Will timeout after {tm} seconds'.format(srv=TIME_SERVICE, tm=timeout))
+                             'Will timeout after {tm} seconds'
+                             .format(srv=TIME_SERVICE, tm=timeout))
             ipautil.run(args)
             ntpmethods.service_command().start()
             return True
@@ -106,7 +113,11 @@ class BaseClientConfig(object):
         root_logger.info('Synchronizing time')
         ntpmethods.force_service(self.statestore)
         ds = ipadiscovery.IPADiscovery()
-        ntp_servers = ds.ipadns_search_srv(self.cli_domain, '_ntp._udp', None, False)
+        ntp_servers = ds.ipadns_search_srv(
+            self.cli_domain,
+            '_ntp._udp',
+            None, False
+        )
         return ntp_servers
 
     def check_state(self):
@@ -124,10 +135,15 @@ class BaseClientConfig(object):
                 if self.ntp_sysconfig:
                     restored |= self.fstore.restore_file(paths.SYSCONFIG_NTPD)
                 if self.ntp_step_tickers:
-                    srv_enabled_tickers = self.statestore.restore_state(ts, 'step-tickers')
+                    srv_enabled_tickers = self.statestore.restore_state(
+                        ts,
+                        'step-tickers'
+                    )
                     if srv_enabled_tickers:
-                        restored |= self.fstore.restore_file(paths.NTP_STEP_TICKERS)
-            except:
+                        restored |= self.fstore.restore_file(
+                            paths.NTP_STEP_TICKERS
+                        )
+            except Exception:
                 pass
 
             if not srv_enabled:
@@ -139,7 +155,8 @@ class BaseClientConfig(object):
         try:
             ntpmethods.restore_forced_service(self.statestore)
         except CalledProcessError as e:
-            root_logger.error('Failed to restore time synchronization service %s' % e)
+            root_logger.error('Failed to restore time synchronization service '
+                              '%s' % e)
 
 
 class BaseServerConfig(service.Service):
@@ -216,7 +233,9 @@ class BaseServerConfig(service.Service):
                         continue
                     sline = sline.replace(NTPD_OPTS_QUOTE, '')
                     (_variable, opts) = sline.split('=', 1)
-                    fd.write(NTPD_OPTS_VAR + '="%s %s"\n' % (opts, ' '.join(newopts)))
+                    fd.write(NTPD_OPTS_VAR + '="%s %s"\n'
+                             % (opts, ' '.join(newopts))
+                             )
                     done = True
                 else:
                     fd.write(line)
@@ -236,7 +255,8 @@ class BaseServerConfig(service.Service):
     def _make_instance(self):
         self.step("stopping %s" % self.service_name, self.__stop)
         self.step("writing configuration", self.__write_config)
-        self.step("configuring %s to start on boot" % self.service_name, self.__enable)
+        self.step("configuring %s to start on boot" % self.service_name,
+                  self.__enable)
         self.step("starting %s" % self.service_name, self.__start)
 
     def create_instance(self):

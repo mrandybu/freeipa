@@ -72,7 +72,8 @@ class ChronyConfig(BaseClientConfig):
             logger.debug("Writing configuration to '%s'", chrony_conf)
             aug.save()
 
-            logger.info('Configuration of %s was changed by installer.' % TIME_SERVICE)
+            logger.info('Configuration of %s was changed by installer.'
+                        % TIME_SERVICE)
             configured = True
 
         except IOError:
@@ -94,10 +95,12 @@ class ChronyConfig(BaseClientConfig):
 
         configured = False
         if ntp_servers:
-            configured = self.__configure_chrony(self.statestore, self.fstore, self.path_conf)
+            configured = self.__configure_chrony(self.statestore,
+                                                 self.fstore,
+                                                 self.path_conf)
         else:
-            logger.warning("No SRV records of NTP servers found and no NTP server "
-                           "or pool address was provided.")
+            logger.warning("No SRV records of NTP servers found and "
+                           "no NTP server or pool address was provided.")
 
         if not configured:
             print("Using default %s configuration." % TIME_SERVICE)

@@ -82,7 +82,13 @@ class NTPDConfig(BaseClientConfig):
     def sync_time(self):
         timeout = 15
         ntp_servers = self._search_ntp_servers()
-        args = [paths.BIN_TIMEOUT, str(timeout), self.ntp_bin, '-qgc', self.path_conf]
+        args = [
+            paths.BIN_TIMEOUT,
+            str(timeout),
+            self.ntp_bin,
+            '-qgc',
+            self.path_conf
+        ]
 
         return self._run_sync(args, timeout, ntp_servers)
 
@@ -110,6 +116,12 @@ class NTPDInstance(BaseServerConfig):
         print("Synchronization time..")
 
         ntpmethods.service_command().stop()
-        args = [paths.BIN_TIMEOUT, str(timeout), self.ntp_bin, '-qgc', self.path_conf]
+        args = [
+            paths.BIN_TIMEOUT,
+            str(timeout),
+            self.ntp_bin,
+            '-qgc',
+            self.path_conf
+        ]
         ipautil.run(args)
         ntpmethods.service_command().start()
