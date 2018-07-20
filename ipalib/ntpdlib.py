@@ -1,6 +1,8 @@
 #
 # Copyright (C) 2018  FreeIPA Contributors see COPYING for license
 #
+from __future__ import absolute_import
+
 from ipalib.basentpconf import BaseClientConfig, BaseServerConfig
 from ipaplatform.paths import paths
 from ipapython import ipautil
@@ -112,8 +114,6 @@ class NTPDInstance(BaseServerConfig):
 
         self._make_instance()
         self.start_creation()
-
-        print("Synchronization time..")
 
         ntpmethods.service_command().stop()
         args = [

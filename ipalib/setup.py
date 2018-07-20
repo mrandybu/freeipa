@@ -42,6 +42,7 @@ if __name__ == '__main__':
             "pyasn1",
             "pyasn1-modules",
             "six",
+            "python-augeas",
         ],
         extras_require={
             "install": ["ipaplatform"],

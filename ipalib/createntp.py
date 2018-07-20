@@ -1,6 +1,8 @@
 #
 # Copyright (C) 2018  FreeIPA Contributors see COPYING for license
 #
+from __future__ import print_function
+
 import sys
 from importlib import import_module
 

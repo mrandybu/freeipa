@@ -1,6 +1,8 @@
 #
 # Copyright (C) 2018  FreeIPA Contributors see COPYING for license
 #
+from __future__ import absolute_import
+
 import shutil
 from pkgutil import find_loader
 from ipaplatform import services

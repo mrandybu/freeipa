@@ -2469,10 +2469,10 @@ def _install(options):
         # If we're on master skipping the time sync here because it was done
         # in ipa-server-install
         logger.debug("Skipping attempt to configure and synchronize time with"
-                     " %s server as it has been already done on master."
-                     % TIME_SERVICE)
+                     " %s server as it has been already done on master.",
+                     TIME_SERVICE)
     else:
-        logger.info("Skipping %s configuration" % TIME_SERVICE)
+        logger.info("Skipping %s configuration", TIME_SERVICE)
 
     if not options.unattended:
         if (options.principal is None and options.password is None and

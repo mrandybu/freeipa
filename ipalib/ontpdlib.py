@@ -1,6 +1,8 @@
 #
 # Copyright (C) 2018  FreeIPA Contributors see COPYING for license
 #
+from __future__ import absolute_import
+
 from ipalib.basentpconf import BaseClientConfig, BaseServerConfig
 from ipaplatform.paths import paths
 from ipapython import ipautil

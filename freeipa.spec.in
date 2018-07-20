@@ -773,6 +773,7 @@ Requires: python2-qrcode-core >= 5.0.0
 Requires: python2-requests
 Requires: python2-setuptools
 Requires: python2-six
+Requires: python2-augeas
 Requires: python2-sss-murmur
 Requires: python2-yubico >= 1.2.3
 
@@ -819,6 +820,7 @@ Requires: python3-qrcode-core >= 5.0.0
 Requires: python3-requests
 Requires: python3-setuptools
 Requires: python3-six
+Requires: python3-augeas
 Requires: python3-sss-murmur
 Requires: python3-yubico >= 1.3.2-7
 

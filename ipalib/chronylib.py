@@ -1,6 +1,8 @@
 #
 # Copyright (C) 2018  FreeIPA Contributors see COPYING for license
 #
+from __future__ import absolute_import
+
 import os
 from augeas import Augeas
 from logging import getLogger
@@ -56,7 +58,7 @@ class ChronyConfig(BaseClientConfig):
                      loadpath=paths.USR_SHARE_IPA_DIR)
 
         try:
-            logger.debug("Configuring %s" % TIME_SERVICE)
+            logger.debug("Configuring %s", TIME_SERVICE)
             chrony_conf = os.path.abspath(path_conf)
             aug.transform(TIME_SERVICE, chrony_conf)
             aug.load()
@@ -65,15 +67,15 @@ class ChronyConfig(BaseClientConfig):
             aug.remove('{}/pool'.format(path))
             aug.remove('{}/peer'.format(path))
 
-            logger.debug("Backing up '%s'", chrony_conf)
+            logger.debug("Backing up %s", chrony_conf)
 
             ntpmethods.backup_config(chrony_conf, fstore)
 
-            logger.debug("Writing configuration to '%s'", chrony_conf)
+            logger.debug("Writing configuration to %s", chrony_conf)
             aug.save()
 
-            logger.info('Configuration of %s was changed by installer.'
-                        % TIME_SERVICE)
+            logger.info('Configuration of %s was changed by installer.',
+                        TIME_SERVICE)
             configured = True
 
         except IOError:
@@ -103,7 +105,7 @@ class ChronyConfig(BaseClientConfig):
                            "no NTP server or pool address was provided.")
 
         if not configured:
-            print("Using default %s configuration." % TIME_SERVICE)
+            logger.info("Using default %s configuration.", TIME_SERVICE)
 
         return self.__sync_chrony()
 

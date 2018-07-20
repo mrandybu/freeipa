@@ -1,22 +1,30 @@
 #
 # Copyright (C) 2018  FreeIPA Contributors see COPYING for license
 #
+from __future__ import absolute_import
+
 import os
+from logging import getLogger
 
 from ipaplatform.tasks import tasks
 from ipaplatform.paths import paths
 from ipaplatform.constants import constants
-from ipaclient.install import ipadiscovery
 from ipapython.ipautil import CalledProcessError
 from ipapython import ipautil
-from ipalib.install import sysrestore
-from ipapython.ipa_log_manager import root_logger
+
+# pylint: disable=import-error,ipa-forbidden-import
+from ipaclient.install import ipadiscovery  # pylint: disable=E0611
+from ipalib.install import sysrestore  # pylint: disable=E0611
 from ipaserver.install import service
+# pylint: enable=import-error,ipa-forbidden-import
+
 from ipalib import ntpmethods
 from ipalib.ntpmethods import TIME_SERVICE
 
 NTPD_OPTS_VAR = constants.NTPD_OPTS_VAR
 NTPD_OPTS_QUOTE = constants.NTPD_OPTS_QUOTE
+
+logger = getLogger(__name__)
 
 
 class BaseClientConfig(object):
@@ -88,29 +96,28 @@ class BaseClientConfig(object):
             except Exception:
                 pass
         else:
-            root_logger.warning("No SRV records of NTP servers found and "
-                                "no NTP server or pool address was provided.")
+            logger.warning("No SRV records of NTP servers found and "
+                           "no NTP server or pool address was provided.")
 
         if not configured:
-            print("Using default %s configuration." % TIME_SERVICE)
+            logger.info("Using default %s configuration.", TIME_SERVICE)
 
         if not os.path.exists(self.ntp_bin):
             return False
 
         try:
-            root_logger.info('Attempting to sync time using {srv}. '
-                             'Will timeout after {tm} seconds'
-                             .format(srv=TIME_SERVICE, tm=timeout))
+            logger.info("Attempting to sync time using %s.", TIME_SERVICE)
+            logger.info("Will timeout after %s seconds", timeout)
             ipautil.run(args)
             ntpmethods.service_command().start()
             return True
         except ipautil.CalledProcessError as e:
             if e.returncode == 124:
-                root_logger.debug('Process did not complete before timeout')
+                logger.debug("Process did not complete before timeout")
             return False
 
     def _search_ntp_servers(self):
-        root_logger.info('Synchronizing time')
+        logger.info('Synchronizing time')
         ntpmethods.force_service(self.statestore)
         ds = ipadiscovery.IPADiscovery()
         ntp_servers = ds.ipadns_search_srv(
@@ -123,7 +130,7 @@ class BaseClientConfig(object):
     def check_state(self):
 
         ts = TIME_SERVICE
-        if TIME_SERVICE == 'ntpd' or TIME_SERVICE == 'openntpd':
+        if ts in ('ntpd', 'openntpd'):
             ts = 'ntp'
 
         if self.statestore.has_state(ts):
@@ -155,8 +162,8 @@ class BaseClientConfig(object):
         try:
             ntpmethods.restore_forced_service(self.statestore)
         except CalledProcessError as e:
-            root_logger.error('Failed to restore time synchronization service '
-                              '%s' % e)
+            logger.error("Failed to restore time synchronization service "
+                         "%s", e)
 
 
 class BaseServerConfig(service.Service):
@@ -276,7 +283,7 @@ class BaseServerConfig(service.Service):
         try:
             self.fstore.restore_file(self.ntp_conf)
         except ValueError as error:
-            root_logger.debug("%s", error)
+            logger.debug("%s", error)
 
         if enabled:
             self.enable()
