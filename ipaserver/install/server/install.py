@@ -769,7 +769,9 @@ def install(installer):
         # chrony will be handled here in uninstall() method as well by invoking
         # the ipa-server-install --uninstall
         if not options.no_ntp:
-            if not createntp.make_instance(sstore, fstore):
+            if not createntp.make_instance(sstore, fstore,
+                                           options.ntp_servers,
+                                           options.ntp_pool):
                 print("Warning: IPA was unable to sync time with %s!"
                       % TIME_SERVICE)
                 print("         Time synchronization is required for IPA "

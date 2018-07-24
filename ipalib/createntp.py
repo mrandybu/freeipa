@@ -28,10 +28,12 @@ def check_import():
 TSINSTANCE, TSCONF, TIME_SERVICE = check_import()
 
 
-def make_instance(sstore, fstore):
+def make_instance(sstore, fstore, ntp_servers, ntp_pool):
     cl = TSINSTANCE()
     cl.sstore = sstore
     cl.fstore = fstore
+    cl.ntp_servers = ntp_servers
+    cl.ntp_pool = ntp_pool
     try:
         cl.create_instance()
         return True

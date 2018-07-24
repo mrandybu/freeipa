@@ -4,7 +4,6 @@
 from __future__ import absolute_import
 
 import os
-from augeas import Augeas
 from logging import getLogger
 
 from ipapython import ipautil
@@ -18,11 +17,14 @@ logger = getLogger(__name__)
 
 
 class ChronyConfig(BaseClientConfig):
-    def __init__(self):
+    def __init__(self, ntp_servers=None, ntp_pool=None):
         super(ChronyConfig, self).__init__(
             path_conf=paths.CHRONY_CONF,
             ntp_bin=paths.CHRONYC
         )
+
+        self.ntp_servers = ntp_servers
+        self.ntp_pool = ntp_pool
 
     def __sync_chrony(self):
 
@@ -48,58 +50,56 @@ class ChronyConfig(BaseClientConfig):
             return False
 
     @staticmethod
-    def __configure_chrony(sysstore, fstore, path_conf):
+    def __configure_chrony(sysstore, fstore, path_conf,
+                           ntp_servers=None, ntp_pool=None):
 
         if sysstore:
             sysstore.backup_state(TIME_SERVICE, "enabled",
                                   ntpmethods.service_command().is_enabled())
 
-        aug = Augeas(flags=Augeas.NO_LOAD | Augeas.NO_MODL_AUTOLOAD,
-                     loadpath=paths.USR_SHARE_IPA_DIR)
-
         try:
-            logger.debug("Configuring %s", TIME_SERVICE)
             chrony_conf = os.path.abspath(path_conf)
-            aug.transform(TIME_SERVICE, chrony_conf)
-            aug.load()
-            path = '/files{path}'.format(path=chrony_conf)
-            aug.remove('{}/server'.format(path))
-            aug.remove('{}/pool'.format(path))
-            aug.remove('{}/peer'.format(path))
+
+            logger.debug("Configuring %s", TIME_SERVICE)
+
+            conf_content = ntpmethods.parse_config(chrony_conf,
+                                                   ntp_pool, ntp_servers)
 
             logger.debug("Backing up %s", chrony_conf)
 
             ntpmethods.backup_config(chrony_conf, fstore)
 
             logger.debug("Writing configuration to %s", chrony_conf)
-            aug.save()
+            ntpmethods.write_config(chrony_conf, conf_content)
 
             logger.info('Configuration of %s was changed by installer.',
                         TIME_SERVICE)
             configured = True
 
         except IOError:
-            logger.error("Augeas failed to configure file %s", chrony_conf)
+            logger.error("Failed to configure file %s", chrony_conf)
             configured = False
 
         except RuntimeError as e:
             logger.error("Configuration failed with: %s", e)
             configured = False
 
-        finally:
-            aug.close()
-
         tasks.restore_context(chrony_conf)
         return configured
 
     def sync_time(self):
-        ntp_servers = self._search_ntp_servers()
+
+        ntp_servers = self.ntp_servers
+        if not ntp_servers:
+            ntp_servers = self._search_ntp_servers()
 
         configured = False
-        if ntp_servers:
+        if ntp_servers | self.ntp_pool:
             configured = self.__configure_chrony(self.statestore,
                                                  self.fstore,
-                                                 self.path_conf)
+                                                 self.path_conf,
+                                                 self.ntp_servers,
+                                                 self.ntp_pool)
         else:
             logger.warning("No SRV records of NTP servers found and "
                            "no NTP server or pool address was provided.")
@@ -120,6 +120,8 @@ class ChronyInstance(BaseServerConfig):
         cl = ChronyConfig()
         cl.statestore = self.sstore
         cl.fstore = self.fstore
+        cl.ntp_servers = self.ntp_servers
+        cl.ntp_pool = self.ntp_pool
 
         cl.sync_time()
 

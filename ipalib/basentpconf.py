@@ -168,13 +168,16 @@ class BaseClientConfig(object):
 
 class BaseServerConfig(service.Service):
     def __init__(self, fstore=None, ntp_conf=None,
-                 local_srv=None, fudge=None, needopts=None, service_name=None):
+                 local_srv=None, fudge=None, needopts=None, service_name=None,
+                 ntp_servers=None, ntp_pool=None):
 
         self.ntp_conf = ntp_conf
         self.local_srv = local_srv
         self.fudge = fudge
         self.needopts = needopts
         self.service_name = service_name
+        self.ntp_servers = ntp_servers
+        self.ntp_pool = ntp_pool
 
         if fstore:
             self.fstore = fstore

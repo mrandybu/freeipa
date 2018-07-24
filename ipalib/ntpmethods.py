@@ -5,6 +5,8 @@ from __future__ import absolute_import
 
 import shutil
 from pkgutil import find_loader
+import re
+
 from ipaplatform import services
 
 
@@ -100,6 +102,37 @@ def restore_forced_service(statestore):
                 instance.enable()
             if running:
                 instance.start()
+
+
+def __get_confile_list(path):
+    confile_list = []
+
+    reg = re.compile(r"^(server|pool)\s.*")
+
+    with open(path) as confile:
+        for line in confile:
+            search_ = re.findall(reg, line)
+            if not search_:
+                confile_list.append(line)
+
+    return confile_list
+
+
+def parse_config(path, pool=None, servers=None):
+    confile_list = __get_confile_list(path)
+
+    confile_list.append("\n### Added by IPA Installer ###\n")
+
+    if pool:
+        confile_list.append('pool {} iburst\n'.format(pool))
+
+    if servers:
+        for srv in servers:
+            confile_list.append('server {} iburst\n'.format(srv))
+
+    conf_content = ''.join(confile_list)
+
+    return conf_content
 
 
 class NTPConfigurationError(Exception):
