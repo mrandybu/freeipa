@@ -8,13 +8,35 @@ from pkgutil import find_loader
 import re
 
 from ipaplatform import services
+from ipaclient.install import ipadiscovery  # pylint: disable=E0611
+
+
+def search_ntp_servers(statestore, cli_domain):
+    force_service(statestore)
+    ds = ipadiscovery.IPADiscovery()
+    ntp_servers = ds.ipadns_search_srv(
+        cli_domain,
+        '_ntp._udp',
+        None, False
+    )
+
+    return ntp_servers
 
 
 def service_command():
     timedata_srv = {
-        'openntpd': services.knownservices.ntpd,
-        'ntpd': services.knownservices.ntpd,
-        'chrony': services.knownservices.chronyd
+        'openntpd': {
+            'srv_api': services.knownservices.ntpd,
+            'bin_name': 'ntpd',
+        },
+        'ntpd': {
+            'srv_api': services.knownservices.ntpd,
+            'bin_name': 'ntpd',
+        },
+        'chrony': {
+            'srv_api': services.knownservices.chronyd,
+            'bin_name': 'chronyd'
+        }
     }
 
     return timedata_srv[TIME_SERVICE]
@@ -69,7 +91,7 @@ def check_timedate_services():
 
 
 def is_run():
-    return service_command().is_running
+    return service_command()['srv_api'].is_running()
 
 
 def force_service(statestore):
@@ -89,25 +111,23 @@ def force_service(statestore):
 
 
 def restore_forced_service(statestore):
-    for service in services.timedate_services:
-        if service == select_service():
-            continue
-        if statestore.has_state(service):
-            instance = services.service(service)
-            enabled = statestore.restore_state(instance.service_name,
-                                               'enabled')
-            running = statestore.restore_state(instance.service_name,
-                                               'running')
-            if enabled:
-                instance.enable()
-            if running:
-                instance.start()
+    service = service_command()['bin_name']
+    if statestore.has_state(service):
+        instance = services.service(service)
+        enabled = statestore.restore_state(instance.service_name,
+                                           'enabled')
+        running = statestore.restore_state(instance.service_name,
+                                           'running')
+        if enabled:
+            instance.enable()
+        if running:
+            instance.start()
 
 
 def __get_confile_list(path):
     confile_list = []
 
-    reg = re.compile(r"^(server|pool)\s.*")
+    reg = re.compile(r"^(server|servers|pool)\s.*")
 
     with open(path) as confile:
         for line in confile:
@@ -118,17 +138,47 @@ def __get_confile_list(path):
     return confile_list
 
 
-def parse_config(path, pool=None, servers=None):
+def __get_confile_params():
+    confile_params = {
+        'ntpd': {
+            'server_label': 'server',
+            'pool_label': 'server',
+            'option': 'iburst',
+        },
+        'openntpd': {
+            'server_label': 'server',
+            'pool_label': 'servers',
+            'option': '',
+        },
+        'chrony': {
+            'server_label': 'server',
+            'pool_label': 'pool',
+            'option': 'iburst',
+        },
+    }
+    return confile_params[TIME_SERVICE]
+
+
+def set_config(path, pool=None, servers=None):
     confile_list = __get_confile_list(path)
+    confile_params = __get_confile_params()
 
     confile_list.append("\n### Added by IPA Installer ###\n")
 
     if pool:
-        confile_list.append('pool {} iburst\n'.format(pool))
+        confile_list.append('{pool_label} {host} {option}\n'.format(
+            pool_label=confile_params['pool_label'],
+            host=pool,
+            option=confile_params['option'],
+        ))
 
     if servers:
         for srv in servers:
-            confile_list.append('server {} iburst\n'.format(srv))
+            confile_list.append('{server_label} {host} {option}\n'.format(
+                server_label=confile_params['server_label'],
+                host=srv,
+                option=confile_params['option'],
+            ))
 
     conf_content = ''.join(confile_list)
 

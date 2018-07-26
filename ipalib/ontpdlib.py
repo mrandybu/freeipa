@@ -3,57 +3,23 @@
 #
 from __future__ import absolute_import
 
-from ipalib.basentpconf import BaseClientConfig, BaseServerConfig
+from ipalib.basentpconf import BaseServerConfig
+from ipalib.basentpconf import BaseNTPClient
 from ipaplatform.paths import paths
 from ipapython import ipautil
 
-ntp_conf = """# sample ntpd configuration file, see ntpd.conf(5)
 
-# Addresses to listen on (ntpd does not listen by default)
-#listen on *
-#listen on 127.0.0.1
-#listen on ::1
-
-# sync to a single server
-#servers ntp.example.org
-
-# use a random selection of 8 public stratum 2 servers
-# see http://twiki.ntp.org/bin/view/Servers/NTPPoolServers
-$SERVERS_BLOCK
-"""
-
-ntp_sysconfig = """# Parameters for NTP daemon.
-# See ntpd(8) for more details.
-
-# Specifies additional parameters for ntpd.
-NTPD_ARGS=-s
-"""
-ntp_step_tickers = """# Use IPA-provided NTP server for initial time
-$TICKER_SERVERS_BLOCK
-"""
-
-
-class OpenNTPDConfig(BaseClientConfig):
+class OpenNTPDClient(BaseNTPClient):
     def __init__(self):
-        super(OpenNTPDConfig, self).__init__(
-            ntp_conf=ntp_conf,
-            ntp_sysconfig=ntp_sysconfig,
-            ntp_step_tickers=ntp_step_tickers,
+        super(OpenNTPDClient, self).__init__(
             path_conf=paths.ONTPD_CONF,
             ntp_bin=paths.NTPD,
+            timeout=15,
+            flag='-f'
         )
 
     def sync_time(self):
-        timeout = 15
-        ntp_servers = self._search_ntp_servers()
-        args = [
-            paths.BIN_TIMEOUT,
-            str(timeout),
-            self.ntp_bin,
-            '-f', self.path_conf
-        ]
-
-        return self._run_sync(args, timeout, ntp_servers)
+        return self.sync_ntp()
 
 
 class OpenNTPDInstance(BaseServerConfig):

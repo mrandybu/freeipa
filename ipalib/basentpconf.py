@@ -13,7 +13,6 @@ from ipapython.ipautil import CalledProcessError
 from ipapython import ipautil
 
 # pylint: disable=import-error,ipa-forbidden-import
-from ipaclient.install import ipadiscovery  # pylint: disable=E0611
 from ipalib.install import sysrestore  # pylint: disable=E0611
 from ipaserver.install import service
 # pylint: enable=import-error,ipa-forbidden-import
@@ -27,143 +26,110 @@ NTPD_OPTS_QUOTE = constants.NTPD_OPTS_QUOTE
 logger = getLogger(__name__)
 
 
-class BaseClientConfig(object):
-    def __init__(self, fstore=None, ntp_conf=None, ntp_sysconfig=None,
-                 ntp_step_tickers=None, sysstore=None,
-                 path_conf=None, ntp_bin=None, statestore=None,
-                 cli_domain=None):
-
+class BaseNTPClient(object):
+    def __init__(self, fstore=None, path_conf=None, ntp_bin=None, statestore=None,
+                 cli_domain=None, timeout=None, flag=None, ntp_servers=None, ntp_pool=None, args=None):
         self.fstore = fstore
-        self.ntp_conf = ntp_conf
-        self.ntp_sysconfig = ntp_sysconfig
-        self.ntp_step_tickers = ntp_step_tickers
-        self.sysstore = sysstore
-        self.path_conf = path_conf
+        self.ntp_confile = path_conf
         self.ntp_bin = ntp_bin
         self.statestore = statestore
         self.cli_domain = cli_domain
 
-    def __config_ntp(self, ntp_servers):
-        if self.statestore:
-            self.sysstore = self.statestore
-
-        path_step_tickers = paths.NTP_STEP_TICKERS
-        path_ntp_sysconfig = paths.SYSCONFIG_NTPD
-        sub_dict = {}
-        sub_dict["SERVERS_BLOCK"] = "\n".join(
-            "server %s" % s for s in ntp_servers
+        self.ntp_servers = ntpmethods.search_ntp_servers(
+            self.statestore,
+            self.cli_domain
         )
-        sub_dict["TICKER_SERVERS_BLOCK"] = "\n".join(ntp_servers)
 
-        nc = ipautil.template_str(self.ntp_conf, sub_dict)
-        config_step_tickers = False
+        if not self.ntp_servers:
+            self.ntp_servers = ntp_servers
 
-        if os.path.exists(path_step_tickers):
-            config_step_tickers = True
-            ns = ipautil.template_str(self.ntp_step_tickers, sub_dict)
-            ntpmethods.backup_config(path_step_tickers, self.fstore)
-            ntpmethods.write_config(path_step_tickers, ns)
-            tasks.restore_context(path_step_tickers)
+        self.ntp_pool = ntp_pool
+        self.timeout = timeout
+        self.flag = flag
+        self.args = args
 
-        if self.sysstore:
-            module = 'ntp'
-            self.sysstore.backup_state(
-                module,
-                "enabled",
-                ntpmethods.service_command().is_enabled()
-            )
-            if config_step_tickers:
-                self.sysstore.backup_state(module, "step-tickers", True)
+        if not args:
+            self.args = [paths.BIN_TIMEOUT, self.timeout,
+                         self.ntp_bin, self.flag, self.ntp_confile]
 
-        ntpmethods.backup_config(self.path_conf, self.fstore)
-        ntpmethods.write_config(self.path_conf, nc)
-        tasks.restore_context(self.path_conf)
-
-        ntpmethods.backup_config(path_ntp_sysconfig, self.fstore)
-        ntpmethods.write_config(path_ntp_sysconfig, self.ntp_sysconfig)
-        tasks.restore_context(path_ntp_sysconfig)
-
-        ntpmethods.service_command().stop()
-
-    def _run_sync(self, args, timeout, ntp_servers):
-
-        configured = False
-
-        if ntp_servers:
-            try:
-                self.__config_ntp(ntp_servers)
-                configured = True
-            except Exception:
-                pass
-        else:
+    def __configure_ntp(self):
+        logger.debug("Configuring {}".format(TIME_SERVICE))
+        if not self.ntp_servers:
             logger.warning("No SRV records of NTP servers found and "
                            "no NTP server or pool address was provided.")
 
+        content = ntpmethods.set_config(path=self.ntp_confile, servers=self.ntp_servers)
+        logger.debug("Backing up {}".format(self.ntp_confile))
+
+        ntpmethods.backup_config(self.ntp_confile, self.fstore)
+        logger.debug("Writing configuration to {}".format(self.ntp_confile))
+
+        ntpmethods.service_command()['srv_api'].stop()
+        ntpmethods.write_config(self.ntp_confile, content)
+
+        tasks.restore_context(self.ntp_confile)
+
+    def sync_ntp(self):
+        configured = False
+
+        try:
+            self.__configure_ntp()
+            configured = True
+        except Exception:
+            pass
+
         if not configured:
-            logger.info("Using default %s configuration.", TIME_SERVICE)
+            logger.info("Using default {} configuration".format(TIME_SERVICE))
 
         if not os.path.exists(self.ntp_bin):
             return False
 
         try:
-            logger.info("Attempting to sync time using %s.", TIME_SERVICE)
-            logger.info("Will timeout after %s seconds", timeout)
-            ipautil.run(args)
-            ntpmethods.service_command().start()
+            logger.info("Attempting to sync time with {}".format(TIME_SERVICE))
+            logger.info("Will timeout after {} seconds".format(self.timeout))
+
+            ipautil.run(self.args)
+
+            ntpmethods.service_command()['srv_api'].enable()
+            ntpmethods.service_command()['srv_api'].start()
+
             return True
+
         except ipautil.CalledProcessError as e:
             if e.returncode == 124:
                 logger.debug("Process did not complete before timeout")
+
             return False
 
-    def _search_ntp_servers(self):
-        logger.info('Synchronizing time')
-        ntpmethods.force_service(self.statestore)
-        ds = ipadiscovery.IPADiscovery()
-        ntp_servers = ds.ipadns_search_srv(
-            self.cli_domain,
-            '_ntp._udp',
-            None, False
-        )
-        return ntp_servers
+    def restore_state(self):
 
-    def check_state(self):
+        restored = False
 
-        ts = TIME_SERVICE
-        if ts in ('ntpd', 'openntpd'):
-            ts = 'ntp'
+        try:
+            restored = self.fstore.restore_file(self.ntp_confile)
 
-        if self.statestore.has_state(ts):
-            srv_enabled = self.statestore.restore_state(ts, 'enabled')
-            restored = False
+        except ValueError:
+            logger.debug("Configuration file %s was not restored.", self.ntp_confile)
 
-            try:
-                restored = self.fstore.restore_file(self.path_conf)
-                if self.ntp_sysconfig:
-                    restored |= self.fstore.restore_file(paths.SYSCONFIG_NTPD)
-                if self.ntp_step_tickers:
-                    srv_enabled_tickers = self.statestore.restore_state(
-                        ts,
-                        'step-tickers'
-                    )
-                    if srv_enabled_tickers:
-                        restored |= self.fstore.restore_file(
-                            paths.NTP_STEP_TICKERS
-                        )
-            except Exception:
-                pass
+        if restored:
+            ntpmethods.service_command()['srv_api'].restart()
 
-            if not srv_enabled:
-                ntpmethods.service_command().stop()
-                ntpmethods.service_command().disable()
-            elif restored:
-                ntpmethods.service_command().restart()
+        else:
+            ntpmethods.service_command()['srv_api'].stop()
+            ntpmethods.service_command()['srv_api'].disable()
 
         try:
             ntpmethods.restore_forced_service(self.statestore)
         except CalledProcessError as e:
             logger.error("Failed to restore time synchronization service "
                          "%s", e)
+
+
+class BaseNTPServer(service.Service):
+    def __init__(self, service_name):
+        super(BaseNTPServer, self).__init__(
+            service_name=service_name,
+        )
 
 
 class BaseServerConfig(service.Service):
