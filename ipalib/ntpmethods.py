@@ -26,20 +26,23 @@ def search_ntp_servers(statestore, cli_domain):
 def service_command():
     timedata_srv = {
         'openntpd': {
-            'srv_api': services.knownservices.ntpd,
-            'bin_name': 'ntpd',
+            'api': services.knownservices.ntpd,
+            'service': 'ntpd',
         },
         'ntpd': {
-            'srv_api': services.knownservices.ntpd,
-            'bin_name': 'ntpd',
+            'api': services.knownservices.ntpd,
+            'service': 'ntpd',
         },
         'chrony': {
-            'srv_api': services.knownservices.chronyd,
-            'bin_name': 'chronyd'
+            'api': services.knownservices.chronyd,
+            'service': 'chronyd'
         }
     }
 
     return timedata_srv[TIME_SERVICE]
+
+
+ntp_service = service_command()
 
 
 def detect_time_server():
@@ -59,29 +62,41 @@ def detect_time_server():
 TIME_SERVICE = detect_time_server()
 
 
-def backup_config(path, fstore=None):
+def backup_config(ntp_confile, fstore=None):
     if fstore:
-        fstore.backup_file(path)
+        fstore.backup_file(ntp_confile)
     else:
-        shutil.copy(path, "%s.ipasave" % path)
+        shutil.copy(ntp_confile, "%s.ipasave" % ntp_confile)
 
 
-def write_config(path, content):
-    fd = open(path, "w")
+def write_config(ntp_confile, content):
+    fd = open(ntp_confile, "w")
     fd.write(content)
     fd.close()
 
 
-def select_service():
-    srv = TIME_SERVICE
-    if TIME_SERVICE == 'openntpd' or 'ntpd':
-        srv = 'ntpd'
-    return srv
+def restore_state(statestore, fstore, ntp_confile, logger):
+    enabled = statestore.restore_state(ntp_service['service'], 'enabled')
+    running = statestore.restore_state(ntp_service['service'], 'running')
+
+    try:
+        fstore.restore_file(ntp_confile)
+    except ValueError:
+        logger.debug("Configuration file %s was not restored.", ntp_confile)
+
+    ntp_service['api'].stop()
+    ntp_service['api'].disable()
+
+    if enabled:
+        ntp_service['api'].enable()
+
+    if running:
+        ntp_service['api'].start()
 
 
 def check_timedate_services():
     for service in services.timedate_services:
-        if service == select_service():
+        if service != ntp_service['service']:
             continue
         instance = services.service(service)
         if instance.is_enabled() or instance.is_running():
@@ -90,38 +105,27 @@ def check_timedate_services():
             )
 
 
-def is_run():
-    return service_command()['srv_api'].is_running()
+def is_running():
+    return ntp_service['api'].is_running()
+
+
+def is_enabled():
+    return ntp_service['api'].is_enabled()
 
 
 def force_service(statestore):
-    for service in services.timedate_services:
-        if service == select_service():
-            continue
-        instance = services.service(service)
-        enabled = instance.is_enabled()
-        running = instance.is_running()
-        if enabled or running:
-            statestore.backup_state(instance.service_name, 'enabled', enabled)
-            statestore.backup_state(instance.service_name, 'running', running)
-            if running:
-                instance.stop()
-            if enabled:
-                instance.disable()
+    enabled = is_enabled()
 
+    running = is_running()
 
-def restore_forced_service(statestore):
-    service = service_command()['bin_name']
-    if statestore.has_state(service):
-        instance = services.service(service)
-        enabled = statestore.restore_state(instance.service_name,
-                                           'enabled')
-        running = statestore.restore_state(instance.service_name,
-                                           'running')
-        if enabled:
-            instance.enable()
-        if running:
-            instance.start()
+    statestore.backup_state(enabled, 'enabled', enabled)
+    statestore.backup_state(running, 'running', running)
+
+    if running:
+        ntp_service['api'].stop()
+
+    if enabled:
+        ntp_service['api'].disable()
 
 
 def __get_confile_list(path):
@@ -159,7 +163,7 @@ def __get_confile_params():
     return confile_params[TIME_SERVICE]
 
 
-def set_config(path, pool=None, servers=None):
+def set_config(path, pool=None, servers=None, fudge=None):
     confile_list = __get_confile_list(path)
     confile_params = __get_confile_params()
 
@@ -179,6 +183,9 @@ def set_config(path, pool=None, servers=None):
                 host=srv,
                 option=confile_params['option'],
             ))
+
+    if fudge:
+        confile_list.append('fudge {host} stratum {num}'.format(host=fudge['host'], num=str(fudge['num'])))
 
     conf_content = ''.join(confile_list)
 

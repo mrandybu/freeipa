@@ -3,17 +3,15 @@
 #
 from __future__ import absolute_import
 
-from ipalib.basentpconf import BaseServerConfig
-from ipalib.basentpconf import BaseNTPClient
+from ipalib.basentpconf import BaseNTPClient, BaseNTPServer
 from ipaplatform.paths import paths
-from ipapython import ipautil
 from ipalib import ntpmethods
 
 
 class NTPDClient(BaseNTPClient):
     def __init__(self):
         super(NTPDClient, self).__init__(
-            path_conf=paths.NTPD_CONF,
+            ntp_confile=paths.NTPD_CONF,
             ntp_bin=paths.NTPD,
             timeout=15,
             flag='-qgc'
@@ -23,33 +21,14 @@ class NTPDClient(BaseNTPClient):
         return self.sync_ntp()
 
 
-class NTPDInstance(BaseServerConfig):
+class NTPDInstance(BaseNTPServer):
     def __init__(self):
-        self.ntp_bin = paths.NTPD
-        self.path_conf = paths.NTPD_CONF
-
         super(NTPDInstance, self).__init__(
-            ntp_conf=paths.NTPD_CONF,
-            local_srv="server 127.127.1.0 iburst",
-            fudge="fudge 127.127.1.0 stratum 10",
-            needopts=[{'val': '-x', 'need': True},
-                      {'val': '-g', 'need': True}],
-            service_name='ntpd'
+            service_name=ntpmethods.ntp_service['service'],
+            ntp_confile=paths.NTPD_CONF,
+            local_srv=['127.127.1.0'],
+            fudge={'host': '127.127.1.0', 'num': 10},
         )
 
     def create_instance(self):
-        timeout = 15
-
-        self._make_instance()
-        self.start_creation()
-
-        ntpmethods.service_command().stop()
-        args = [
-            paths.BIN_TIMEOUT,
-            str(timeout),
-            self.ntp_bin,
-            '-qgc',
-            self.path_conf
-        ]
-        ipautil.run(args)
-        ntpmethods.service_command().start()
+        self.make_instance()

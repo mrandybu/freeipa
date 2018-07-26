@@ -4,8 +4,8 @@
 from __future__ import absolute_import
 
 from ipaplatform.paths import paths
-from ipalib.basentpconf import BaseClientConfig, BaseServerConfig
-from ipalib.basentpconf import BaseNTPClient
+from ipalib.basentpconf import BaseNTPClient, BaseNTPServer
+from ipalib.ntpmethods import ntp_service
 
 
 class ChronyClient(BaseNTPClient):
@@ -13,7 +13,7 @@ class ChronyClient(BaseNTPClient):
 
     def __init__(self):
         super(ChronyClient, self).__init__(
-            path_conf=paths.CHRONY_CONF,
+            ntp_confile=paths.CHRONY_CONF,
             ntp_bin=paths.CHRONYC,
             args=[self.ntp_bin, 'waitsync', str(self.sync_attempt_count), '-d'],
         )
@@ -22,24 +22,12 @@ class ChronyClient(BaseNTPClient):
         self.sync_ntp()
 
 
-class ChronyInstance(BaseServerConfig):
+class ChronyInstance(BaseNTPServer):
     def __init__(self):
         super(ChronyInstance, self).__init__(
-            service_name='chronyd'
+            service_name=ntp_service['service'],
+            ntp_confile=paths.CHRONY_CONF,
         )
 
     def create_instance(self):
-        cl = ChronyConfig()
-        cl.statestore = self.sstore
-        cl.fstore = self.fstore
-        cl.ntp_servers = self.ntp_servers
-        cl.ntp_pool = self.ntp_pool
-
-        cl.sync_time()
-
-    def uninstall(self):
-        un = BaseClientConfig()
-        un.statestore = self.sstore
-        un.fstore = self.fstore
-
-        un.check_state()
+        self.make_instance()
