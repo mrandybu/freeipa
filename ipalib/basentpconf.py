@@ -36,12 +36,12 @@ class BaseNTPClass(service.Service):
         self.ntp_confile = ntp_confile
         self.ntp_servers = ntp_servers
         self.ntp_bin = ntp_bin
+        self.ntp_pool = ntp_pool
 
-        if not self.ntp_servers:
+        if not self.ntp_servers and not self.ntp_pool:
             self.ntp_servers = ntpmethods.search_ntp_servers(self.sstore,
                                                              self.cli_domain)
 
-        self.ntp_pool = ntp_pool
         self.local_srv = local_srv
         self.fudge = fudge
         self.cli_domain = cli_domain
@@ -60,9 +60,11 @@ class BaseNTPClass(service.Service):
         logger.debug("Configuring %s", TIME_SERVICE)
 
         if self.ntp_servers or self.ntp_pool:
-            config_content = ntpmethods.set_config(self.ntp_confile, self.ntp_pool, self.ntp_servers)
+            config_content = ntpmethods.set_config(
+                self.ntp_confile, self.ntp_pool, self.ntp_servers)
         elif self.local_srv:
-            config_content = ntpmethods.set_config(self.ntp_confile, servers=self.local_srv, fudge=self.fudge)
+            config_content = ntpmethods.set_config(
+                self.ntp_confile, servers=self.local_srv, fudge=self.fudge)
         else:
             config_content = None
             logger.warning("No SRV records of NTP servers found and "
@@ -74,8 +76,10 @@ class BaseNTPClass(service.Service):
         enabled = ntpmethods.is_enabled()
         running = ntpmethods.is_running()
 
-        self.sstore.backup_state(ntpmethods.ntp_service['service'], 'enabled', enabled)
-        self.sstore.backup_state(ntpmethods.ntp_service['service'], 'running', running)
+        self.sstore.backup_state(
+            ntpmethods.ntp_service['service'], 'enabled', enabled)
+        self.sstore.backup_state(
+            ntpmethods.ntp_service['service'], 'running', running)
 
         ntpmethods.ntp_service['api'].stop()
 
@@ -95,9 +99,11 @@ class BaseNTPClass(service.Service):
     def sync_time(self):
 
         if not self.__configure_ntp():
-            ntpmethods.service_control.print_msg("Using default %s configuration", TIME_SERVICE)
+            ntpmethods.service_control.print_msg(
+                "Using default %s configuration", TIME_SERVICE)
         else:
-            ntpmethods.service_control.print_msg("Successfully configuring %s", TIME_SERVICE)
+            ntpmethods.service_control.print_msg(
+                "Successfully configuring %s", TIME_SERVICE)
 
         if self.ntp_bin:
             if not os.path.exists(self.ntp_bin):
@@ -135,4 +141,5 @@ class BaseNTPClass(service.Service):
             return False
 
     def uninstall(self):
-        ntpmethods.uninstall(self.sstore, self.fstore, self.ntp_confile, logger)
+        ntpmethods.uninstall(
+            self.sstore, self.fstore, self.ntp_confile, logger)

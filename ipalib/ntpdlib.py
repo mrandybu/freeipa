@@ -4,25 +4,28 @@
 from __future__ import absolute_import
 
 from ipaplatform.paths import paths
-from ipalib.basentpconf import BaseNTPClient, BaseNTPServer
+from ipalib.basentpconf import BaseNTPClass
 from ipalib.ntpmethods import ntp_service
 
+SERVICE_NAME = ntp_service['service']
 
-class NTPDClient(BaseNTPClient):
+
+class NTPDClient(BaseNTPClass):
     def __init__(self):
         super(NTPDClient, self).__init__(
+            service_name=SERVICE_NAME,
             ntp_confile=paths.NTPD_CONF,
-            ntp_bin=paths.NTPD,
             timeout=15,
-            flag='-qgc'
+            flag='-qgc',
+            ntp_bin=paths.NTPD
         )
 
 
-class NTPDInstance(BaseNTPServer):
+class NTPDServer(BaseNTPClass):
     def __init__(self):
-        super(NTPDInstance, self).__init__(
-            service_name=ntp_service['service'],
+        super(NTPDServer, self).__init__(
+            service_name=SERVICE_NAME,
             ntp_confile=paths.NTPD_CONF,
             local_srv=['127.127.1.0'],
-            fudge={'host': '127.127.1.0', 'num': 10},
+            fudge={'host': '127.127.1.0', 'num': 10}
         )

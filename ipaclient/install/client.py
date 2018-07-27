@@ -3332,7 +3332,7 @@ def uninstall(options):
                 service.service_name
             )
 
-    createntp.uninstall_client(statestore, fstore)
+    createntp.uninstall_client(fstore, statestore)
 
     if was_sshd_configured and services.knownservices.sshd.is_running():
         services.knownservices.sshd.restart()

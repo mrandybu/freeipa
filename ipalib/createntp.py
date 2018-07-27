@@ -13,10 +13,10 @@ def detect_ntp_daemon():
         try:
             tsinst = getattr(import_module(
                 'ipalib.{srv}lib'.format(srv=imp[0])),
-                imp[1] + 'Instance')
+                imp[1] + 'Server')
             tsconf = getattr(import_module(
                 'ipalib.{srv}lib'.format(srv=imp[0])),
-                imp[1] + 'Config')
+                imp[1] + 'Client')
             return tsinst, tsconf, imp
         except Exception:
             pass
@@ -35,20 +35,15 @@ def sync_time_server(fstore, sstore, ntp_servers, ntp_pool):
     cl.sstore = sstore
     cl.ntp_servers = ntp_servers
     cl.ntp_pool = ntp_pool
-    cl.ntp_pool = ntp_pool
 
-    try:
-        cl.sync_time()
-        return True
-    except Exception:
-        return False
+    return cl.sync_time()
 
 
 def sync_time_client(fstore, statestore, cli_domain, ntp_servers, ntp_pool):
     cl = NTPCLIENT()
 
     cl.fstore = fstore
-    cl.statestore = statestore
+    cl.sstore = statestore
     cl.cli_domain = cli_domain
     cl.ntp_servers = ntp_servers
     cl.ntp_pool = ntp_pool
