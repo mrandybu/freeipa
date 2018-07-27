@@ -8,7 +8,6 @@ from logging import getLogger
 
 from ipaplatform.tasks import tasks
 from ipaplatform.paths import paths
-from ipaplatform.constants import constants
 from ipapython import ipautil
 
 # pylint: disable=import-error,ipa-forbidden-import
@@ -19,15 +18,14 @@ from ipaserver.install import service
 from ipalib import ntpmethods
 from ipalib.ntpmethods import TIME_SERVICE
 
-NTPD_OPTS_VAR = constants.NTPD_OPTS_VAR
-NTPD_OPTS_QUOTE = constants.NTPD_OPTS_QUOTE
-
 logger = getLogger(__name__)
 
 
 class BaseNTPClient(object):
-    def __init__(self, fstore=None, ntp_confile=None, ntp_bin=None, statestore=None,
-                 cli_domain=None, timeout=None, flag=None, ntp_servers=None, ntp_pool=None, args=None):
+    def __init__(self, fstore=None, ntp_confile=None, ntp_bin=None,
+                 statestore=None, cli_domain=None, timeout=None, flag=None,
+                 ntp_servers=None, ntp_pool=None, args=None):
+
         self.fstore = fstore
         self.ntp_confile = ntp_confile
         self.ntp_bin = ntp_bin
@@ -57,7 +55,8 @@ class BaseNTPClient(object):
             logger.warning("No SRV records of NTP servers found and "
                            "no NTP server or pool address was provided.")
 
-        content = ntpmethods.set_config(self.ntp_confile, servers=self.ntp_servers)
+        config_content = ntpmethods.set_config(self.ntp_confile,
+                                               servers=self.ntp_servers)
 
         logger.debug("Backing up {}".format(self.ntp_confile))
         ntpmethods.backup_config(self.ntp_confile, self.fstore)
@@ -67,16 +66,18 @@ class BaseNTPClient(object):
         enabled = ntpmethods.ntp_service['api'].is_enabled()
         running = ntpmethods.ntp_service['api'].is_running()
 
-        self.statestore.backup_state(ntpmethods.ntp_service['service'], 'enabled', enabled)
-        self.statestore.backup_state(ntpmethods.ntp_service['service'], 'running', running)
+        self.statestore.backup_state(ntpmethods.ntp_service['service'],
+                                     'enabled', enabled)
+        self.statestore.backup_state(ntpmethods.ntp_service['service'],
+                                     'running', running)
 
         logger.debug("Writing configuration to {}".format(self.ntp_confile))
         ntpmethods.ntp_service['api'].stop()
-        ntpmethods.write_config(self.ntp_confile, content)
+        ntpmethods.write_config(self.ntp_confile, config_content)
 
         tasks.restore_context(self.ntp_confile)
 
-    def sync_ntp(self):
+    def sync_time(self):
         configured = False
 
         try:
@@ -108,9 +109,14 @@ class BaseNTPClient(object):
 
             return False
 
+    def uninstall(self):
+        ntpmethods.uninstall(self.statestore, self.fstore,
+                             self.ntp_confile, logger)
+
 
 class BaseNTPServer(service.Service):
-    def __init__(self, service_name, ntp_confile=None, fstore=None, ntp_servers=None, ntp_pool=None, local_srv=None,
+    def __init__(self, service_name, ntp_confile=None, fstore=None,
+                 ntp_servers=None, ntp_pool=None, local_srv=None,
                  fudge=None, sstore=None):
         super(BaseNTPServer, self).__init__(
             service_name=service_name,
@@ -128,28 +134,30 @@ class BaseNTPServer(service.Service):
         if not self.fstore:
             self.fstore = sysrestore.FileStore(paths.SYSRESTORE)
 
-    def __write_config(self):
+    def __configure_ntp(self):
         logger.debug("Make backup")
         self.fstore.backup_file(self.ntp_confile)
 
         logger.debug("Configuring")
-        content = ntpmethods.set_config(self.ntp_confile, servers=self.local_srv, fudge=self.fudge)
+        content = ntpmethods.set_config(self.ntp_confile,
+                                        servers=self.local_srv,
+                                        fudge=self.fudge)
 
         logger.debug("Write config")
 
         ntpmethods.ntp_service['api'].stop()
         ntpmethods.write_config(self.ntp_confile, content)
 
-    def make_instance(self):
+    def sync_time(self):
         self.step("stopping %s" % self.service_name, self.stop)
-        self.step("writing configuration", self.__write_config)
-        self.step("configuring %s to start on boot" % self.service_name, self.enable)
+        self.step("writing configuration", self.__configure_ntp)
+        self.step("configuring %s to start on boot"
+                  % self.service_name, self.enable)
         self.start("starting %d" % self.service_name, self.start)
 
         self.start_creation()
 
     def uninstall(self):
-        if self.is_configured():
-            self.print_msg("Unconfiguring %s" % self.service_name)
-
-        ntpmethods.restore_state(self.sstore, self.fstore, self.ntp_confile, logger)
+        ntpmethods.uninstall(
+            self.sstore, self.fstore, self.ntp_confile, logger
+        )

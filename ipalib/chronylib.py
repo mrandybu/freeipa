@@ -15,11 +15,9 @@ class ChronyClient(BaseNTPClient):
         super(ChronyClient, self).__init__(
             ntp_confile=paths.CHRONY_CONF,
             ntp_bin=paths.CHRONYC,
-            args=[self.ntp_bin, 'waitsync', str(self.sync_attempt_count), '-d'],
+            args=[self.ntp_bin, 'waitsync',
+                  str(self.sync_attempt_count), '-d'],
         )
-
-    def sync_time(self):
-        self.sync_ntp()
 
 
 class ChronyInstance(BaseNTPServer):
@@ -28,6 +26,3 @@ class ChronyInstance(BaseNTPServer):
             service_name=ntp_service['service'],
             ntp_confile=paths.CHRONY_CONF,
         )
-
-    def create_instance(self):
-        self.make_instance()

@@ -7,7 +7,7 @@ import sys
 from importlib import import_module
 
 
-def check_import():
+def detect_ntp_daemon():
     impls = [['ntpd', 'NTPD'], ['ontpd', 'OpenNTPD'], ['chrony', 'Chrony']]
     for imp in impls:
         try:
@@ -25,43 +25,50 @@ def check_import():
     sys.exit(1)
 
 
-TSINSTANCE, TSCONF, TIME_SERVICE = check_import()
+NTPSERVER, NTPCLIENT, TIME_SERVICE = detect_ntp_daemon()
 
 
-def make_instance(sstore, fstore, ntp_servers, ntp_pool):
-    cl = TSINSTANCE()
-    cl.sstore = sstore
+def sync_time_server(fstore, sstore, ntp_servers, ntp_pool):
+    cl = NTPSERVER()
+
     cl.fstore = fstore
+    cl.sstore = sstore
     cl.ntp_servers = ntp_servers
     cl.ntp_pool = ntp_pool
+    cl.ntp_pool = ntp_pool
+
     try:
-        cl.create_instance()
+        cl.sync_time()
         return True
     except Exception:
         return False
 
 
-def sync_time(statestore=None, cli_domain=None, sysstore=None, fstore=None):
-    srv_class = TSCONF()
-    srv_class.statestore = statestore
-    srv_class.cli_domain = cli_domain
-    srv_class.sysstore = sysstore
-    srv_class.fstore = fstore
+def sync_time_client(fstore, statestore, cli_domain, ntp_servers, ntp_pool):
+    cl = NTPCLIENT()
 
-    srv_class.sync_time()
+    cl.fstore = fstore
+    cl.statestore = statestore
+    cl.cli_domain = cli_domain
+    cl.ntp_servers = ntp_servers
+    cl.ntp_pool = ntp_pool
 
-
-def uninstall(fstore, sstore):
-    srv_class = TSINSTANCE()
-    srv_class.fstore = fstore
-    srv_class.sstore = sstore
-
-    srv_class.uninstall()
+    return cl.sync_time()
 
 
-def restore_time_sync(statestore=None, fstore=None):
-    srv_class = TSCONF()
-    srv_class.statestore = statestore
-    srv_class.fstore = fstore
+def uninstall_server(fstore, sstore):
+    cl = NTPSERVER()
 
-    srv_class.check_state()
+    cl.sstore = sstore
+    cl.fstore = fstore
+
+    cl.uninstall()
+
+
+def uninstall_client(fstore, sstore):
+    cl = NTPCLIENT()
+
+    cl.sstore = sstore
+    cl.fstore = fstore
+
+    cl.uninstall()

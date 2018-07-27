@@ -17,7 +17,7 @@ import tempfile
 from contextlib import contextmanager
 from augeas import Augeas
 import dns.exception
-from ipalib import api, x509, ntpmethods
+from ipalib import api, x509
 from ipalib.install import certmonger, sysrestore
 import SSSDConfig
 import ipalib.util
@@ -1629,48 +1629,6 @@ def enable_certauth(krb):
         aug.close()
 
 
-def ntpd_cleanup(fqdn, fstore):
-    sstore = sysrestore.StateFile(paths.SYSRESTORE)
-    ntpmethods.restore_forced_service(sstore)
-    if sstore.has_state('ntp'):
-        instance = services.service('ntpd', api)
-        sstore.restore_state(instance.service_name, 'enabled')
-        sstore.restore_state(instance.service_name, 'running')
-        sstore.restore_state(instance.service_name, 'step-tickers')
-        try:
-            instance.disable()
-            instance.stop()
-        except Exception as e:
-            logger.info("Service ntpd was not disabled or stopped")
-
-    for ntpd_file in [paths.NTP_CONF, paths.NTP_STEP_TICKERS,
-                      paths.SYSCONFIG_NTPD]:
-        try:
-            fstore.restore_file(ntpd_file)
-        except ValueError as e:
-            logger.warning(e)
-
-    try:
-        api.Backend.ldap2.delete_entry(DN(('cn', 'NTP'), ('cn', fqdn),
-                                       api.env.container_masters))
-    except ipalib.errors.NotFound:
-        logger.warning("Warning: NTP service entry was not found in LDAP.")
-
-    ntp_role_instance = servroles.ServiceBasedRole(
-         u"ntp_server_server",
-         u"NTP server",
-         component_services=['NTP']
-    )
-
-    updated_role_instances = tuple()
-    for role_instance in servroles.role_instances:
-        if role_instance is not ntp_role_instance:
-            updated_role_instances += tuple([role_instance])
-
-    servroles.role_instances = updated_role_instances
-    sysupgrade.set_upgrade_state('ntpd', 'ntpd_cleaned', True)
-
-
 def update_replica_config(db_suffix):
     dn = DN(
         ('cn', 'replica'), ('cn', db_suffix), ('cn', 'mapping tree'),
@@ -1753,9 +1711,6 @@ def upgrade_configuration():
     ds_running = ds.is_running()
     if not ds_running:
         ds.start(ds_serverid)
-
-    if not sysupgrade.get_upgrade_state('ntpd', 'ntpd_cleaned'):
-        ntpd_cleanup(fqdn, fstore)
 
     check_certs()
     fix_permissions()

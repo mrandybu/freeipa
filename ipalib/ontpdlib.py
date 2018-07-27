@@ -3,9 +3,9 @@
 #
 from __future__ import absolute_import
 
+from ipaplatform.paths import paths
 from ipalib.basentpconf import BaseNTPClient, BaseNTPServer
 from ipalib.ntpmethods import ntp_service
-from ipaplatform.paths import paths
 
 
 class OpenNTPDClient(BaseNTPClient):
@@ -17,9 +17,6 @@ class OpenNTPDClient(BaseNTPClient):
             flag='-f'
         )
 
-    def sync_time(self):
-        return self.sync_ntp()
-
 
 class OpenNTPDServer(BaseNTPServer):
     def __init__(self):
@@ -28,6 +25,3 @@ class OpenNTPDServer(BaseNTPServer):
             ntp_confile=paths.ONTPD_CONF,
             local_srv=['127.127.1.0'],
         )
-
-    def create_instance(self):
-        self.make_instance()

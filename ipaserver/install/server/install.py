@@ -769,13 +769,15 @@ def install(installer):
         # chrony will be handled here in uninstall() method as well by invoking
         # the ipa-server-install --uninstall
         if not options.no_ntp:
-            if not createntp.make_instance(sstore, fstore,
-                                           options.ntp_servers,
-                                           options.ntp_pool):
+            if not createntp.sync_time_server(
+                    fstore, sstore, options.ntp_servers, options.ntp_pool):
                 print("Warning: IPA was unable to sync time with %s!"
                       % TIME_SERVICE)
                 print("         Time synchronization is required for IPA "
                       "to work correctly")
+            else:
+                print("Successfully synchronization time with %s"
+                      % TIME_SERVICE)
 
         if options.dirsrv_cert_files:
             ds = dsinstance.DsInstance(fstore=fstore,
@@ -973,7 +975,7 @@ def install(installer):
           "user-add)")
     print("\t   and the web user interface.")
 
-    if not ntpmethods.is_run():
+    if not ntpmethods.is_running():
         print("\t3. Kerberos requires time synchronization between clients")
         print("\t   and servers for correct operation. You should consider "
               "enabling %s." % TIME_SERVICE)
@@ -1101,8 +1103,6 @@ def uninstall(installer):
         except Exception:
             pass
 
-    createntp.uninstall(fstore, sstore)
-
     kra.uninstall()
 
     ca.uninstall()
@@ -1133,7 +1133,7 @@ def uninstall(installer):
 
     sstore._load()
 
-    ntpmethods.restore_forced_service(sstore)
+    createntp.uninstall_server(fstore, sstore)
 
     # Clean up group_exists (unused since IPA 2.2, not being set since 4.1)
     sstore.restore_state("install", "group_exists")

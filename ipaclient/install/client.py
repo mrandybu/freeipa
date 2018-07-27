@@ -2464,7 +2464,15 @@ def _install(options):
 
     if options.conf_ntp:
         # Attempt to configure and sync time with NTP server.
-        createntp.sync_time(statestore, cli_domain, None, fstore)
+        if not createntp.sync_time_client(
+                fstore, statestore, cli_domain,
+                options.ntp_servers, options.ntp_pool):
+            print("Warning: IPA client was unable to sync time "
+                  "with IPA server!")
+            print("         Time synchronization is required for IPA "
+                  "to work correctly")
+        else:
+            print("Successfully synchronization time with IPA server")
     elif options.on_master:
         # If we're on master skipping the time sync here because it was done
         # in ipa-server-install
@@ -3324,7 +3332,7 @@ def uninstall(options):
                 service.service_name
             )
 
-    createntp.restore_time_sync(statestore, fstore)
+    createntp.uninstall_client(statestore, fstore)
 
     if was_sshd_configured and services.knownservices.sshd.is_running():
         services.knownservices.sshd.restart()
