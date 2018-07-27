@@ -50,7 +50,7 @@ class BaseNTPClient(object):
                          self.ntp_bin, self.flag, self.ntp_confile]
 
     def __configure_ntp(self):
-        logger.debug("Configuring {}".format(TIME_SERVICE))
+        logger.debug("Configuring %s", TIME_SERVICE)
         if not self.ntp_servers:
             logger.warning("No SRV records of NTP servers found and "
                            "no NTP server or pool address was provided.")
@@ -58,10 +58,10 @@ class BaseNTPClient(object):
         config_content = ntpmethods.set_config(self.ntp_confile,
                                                servers=self.ntp_servers)
 
-        logger.debug("Backing up {}".format(self.ntp_confile))
+        logger.debug("Backing up %s", self.ntp_confile)
         ntpmethods.backup_config(self.ntp_confile, self.fstore)
 
-        logger.debug("Backing up state {}".format(TIME_SERVICE))
+        logger.debug("Backing up state %s", TIME_SERVICE)
 
         enabled = ntpmethods.ntp_service['api'].is_enabled()
         running = ntpmethods.ntp_service['api'].is_running()
@@ -71,7 +71,7 @@ class BaseNTPClient(object):
         self.statestore.backup_state(ntpmethods.ntp_service['service'],
                                      'running', running)
 
-        logger.debug("Writing configuration to {}".format(self.ntp_confile))
+        logger.debug("Writing configuration to %s", self.ntp_confile)
         ntpmethods.ntp_service['api'].stop()
         ntpmethods.write_config(self.ntp_confile, config_content)
 
@@ -87,14 +87,14 @@ class BaseNTPClient(object):
             pass
 
         if not configured:
-            logger.info("Using default {} configuration".format(TIME_SERVICE))
+            logger.info("Using default %s configuration", TIME_SERVICE)
 
         if not os.path.exists(self.ntp_bin):
             return False
 
         try:
-            logger.info("Attempting to sync time with {}".format(TIME_SERVICE))
-            logger.info("Will timeout after {} seconds".format(self.timeout))
+            logger.info("Attempting to sync time with %s", TIME_SERVICE)
+            logger.info("Will timeout after %s seconds", TIME_SERVICE)
 
             ipautil.run(self.args)
 
@@ -131,7 +131,7 @@ class BaseNTPServer(service.Service):
         self.local_srv = local_srv
         self.fudge = fudge
 
-        if not self.fstore:
+        if not fstore:
             self.fstore = sysrestore.FileStore(paths.SYSRESTORE)
 
     def __configure_ntp(self):

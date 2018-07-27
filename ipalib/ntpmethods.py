@@ -8,8 +8,13 @@ from pkgutil import find_loader
 import re
 
 from ipaplatform import services
-from ipaclient.install import ipadiscovery  # pylint: disable=E0611
-from ipaserver.install.service import Service
+
+# pylint: disable=import-error,ipa-forbidden-import
+from ipaclient.install import ipadiscovery  # pylint: disable=E0401,E0611
+from ipaserver.install.service import Service  # pylint: disable=E0401
+
+
+# pylint: enable=import-error,ipa-forbidden-import
 
 
 def __service_control():
@@ -212,6 +217,6 @@ class NTPConflictingService(NTPConfigurationError):
         self.conflicting_service = conflicting_service
 
 
-service_control = __service_control()
-ntp_service = __service_command()
 TIME_SERVICE = __detect_time_server()
+ntp_service = __service_command()
+service_control = __service_control()

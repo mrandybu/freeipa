@@ -30,7 +30,6 @@ from ipapython import dnsutil, directivesetter
 from ipapython.dn import DN
 from ipaplatform.constants import constants
 from ipaplatform.paths import paths
-from ipaserver import servroles
 from ipaserver.install import installutils
 from ipaserver.install import dsinstance
 from ipaserver.install import httpinstance
